@@ -11,8 +11,8 @@ def linetoImage(line):
     line = line.split(',')
     x = np.array(line).astype(float).astype(np.uint8)
     im = x.reshape(-1, 64)
-    im[im<250] = 0
-    im[im>=250] = 255
+    im[im<240] = 0
+    im[im>=240] = 255
     return im
 
 def findcharacters(image):
@@ -28,13 +28,11 @@ def findcharacters(image):
             (x,y,w,h) = cv2.boundingRect(contour)
             cv2.rectangle(image, (x,y), (x+w,y+h), (255, 255, 255), 1)
 
-def reducenoise(image):
-    cv2.fastNlMeansDenoising(image)
 
 lines = openfile('train_x.csv')
 image = linetoImage(lines[28])
+scipy.misc.imshow(image)
 
-reducenoise(image)
 findcharacters(image)
 scipy.misc.imshow(image)
 
