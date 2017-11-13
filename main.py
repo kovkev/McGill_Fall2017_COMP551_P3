@@ -71,7 +71,9 @@ class Layer(object):
     return s
 
 
+from scipy.special import expit
 def sigmoid(x):
+  return expit(x)
   return 1/(1 + math.e**(-x))
 
 def sigmoid_prime(x):
@@ -133,7 +135,11 @@ class FFNN(object):
     error = self.layers[-1].output - result
     return error
 
-  def train(self, example):
+  def prediction(self, example):
+    diff = self.error(example)
+    return np.argmin(diff)
+
+  def train(self, example, training_set_size):
     error = self.error(example)
 
     # d_a_C = error
@@ -193,12 +199,12 @@ class FFNN(object):
       layer.weights = (
         layer.weights
         - self.learning_rate
-        * mul
+        * mul / training_set_size
       )
       layer.biases = (
         layer.biases
         - self.learning_rate
-        * deltas[i]
+        * deltas[i] / training_set_size
       )
 
 def get_dataset():
@@ -209,9 +215,41 @@ def get_dataset():
     )
   ]
   validate_data(dataset)
+  import numpy   as np
+  import scipy.misc # to visualize only
+  x = np.loadtxt("train_x_small.csv", delimiter=",") # load from text
+  y = np.loadtxt("train_y.csv", delimiter=",")
+
+
+  x = x.reshape(-1, 64, 64) # reshape
+  x = x.reshape(-1, 4096)
+
+  y = y.reshape(-1)
+  y = y.astype(int)
+
+  n_values = np.max(y) + 1
+  one_hot_ks = np.eye(n_values)[y]
+
+  print("loading train_x.csv")
+  import pandas as pd
+  xxs = pd.read_csv("train_x.csv", delimiter=",")
+  xxs = np.array(xxs)
+  print("loaded train_x.csv")
+  xxs = xxs.reshape(-1, 4096)
+  xxs = xxs.astype('f')
+
+  out = zip(xxs, one_hot_ks)
+
+  print("returning")
+
+  return out
+
+  y_hot_k[y] = 1
+  import pdb; pdb.set_trace()
+  print("A")
+  # scipy.misc.imshow(x[0]) # to visualize only
+
   return dataset
-  # with open() as f:
-  #   pass
 
 def validate_data(dataset):
   feature_size = len(dataset[0][0])
@@ -221,14 +259,17 @@ def validate_data(dataset):
     assert len(example[0]) == feature_size
     assert len(example[1]) == result_size
 
+def kgassert(res, test):
+  print(res)
+  assert res == test
+
 def main():
   dataset = get_dataset()
 
   layer_sizes=[
-    1,
-    3,
-    3,
-    1,
+    4096,
+    4096,
+    82,
   ]
 
   learning_rate=0.001
@@ -236,23 +277,96 @@ def main():
   ffnn = FFNN(
     layer_sizes=layer_sizes,
     learning_rate=learning_rate,
-    # activation_function=linear,
+    activation_function=sigmoid,
   )
 
-  assert len(dataset[0][0]) == layer_sizes[0]
-  assert len(dataset[0][1]) == layer_sizes[-1]
+  print("A")
+
+  kgassert(len(dataset[0][0]), layer_sizes[0])
+  kgassert(len(dataset[0][1]), layer_sizes[-1])
+
+  validation_set_proportion = 0.2
+  validation_set_size = int(int(len(dataset)) * validation_set_proportion)
+  import pdb; pdb.set_trace()
+  np.random.shuffle(dataset)
+  training_set, validation_set = dataset[:-validation_set_size], dataset[-validation_set_size:]
 
   print(ffnn.representation())
-  for epoch_t in range(500):
-    for example in dataset:
-      dprint(example)
-      ffnn.train(example)
 
-    # training_error()
-    for example in dataset:
-      error = ffnn.error(example)
-      print(sum(error**2))
-    # validation_error()
+  training_errors = []
+  validation_errors = []
+  for epoch_t in range(500):
+    print("epoch: " + str(epoch_t))
+    num_per_batch = 100
+    for i in range(len(training_set)/ num_per_batch):
+      start = i*num_per_batch
+      end = min((i+1) * num_per_batch, len(training_set))
+      print ("batch " + str(i))
+
+      for j in range(start, end):
+        example = training_set[j]
+
+        dprint(example)
+        ffnn.train(example, float(len(training_set)))
+
+      training_error = 0
+      for example in training_set[start:end]:
+        predicted_class = ffnn.prediction(example)
+        actual_class = np.argmax(example[1])
+
+        if predicted_class != actual_class:
+          training_error += 1
+
+      training_percentage_error = float(training_error) / len(training_set)
+
+      validation_error = 0
+      for example in validation_set[start:end]:
+        predicted_class = ffnn.prediction(example)
+        actual_class = np.argmax(example[1])
+
+        if predicted_class != actual_class:
+          validation_error += 1
+
+      validation_percentage_error = float(validation_error) / validation_set_size
+
+      print(">>>")
+      print(training_percentage_error)
+      print(validation_percentage_error)
+      training_errors.append(training_percentage_error)
+      validation_errors.append(validation_percentage_error)
+
+  num_classes =len(dataset[1])
+  confusion_matrix = np\
+    .zeros(num_classes**2)\
+    .reshape(num_classes, num_classes)
+
+  for example in validation_set:
+    predicted_class = ffnn.prediction(example)
+    actual_class = np.argmax(example[1])
+    confusion_matrix[actual_class][predicted_class] += 1
+
+  with open("dump.txt", "w") as f:
+    f.write(
+      str(training_errors)
+    )
+    f.write(
+      str(validation_errors)
+    )
+
+  with open("dump_confusion_matrix.txt", "w") as f:
+    f.write(
+      str(confusion_matrix)
+    )
+
+  with open("dump_hyperparameters.txt", "w") as f:
+    f.write(
+      str({
+        "learning_rate": learning_rate,
+        "layer_sizes": layer_sizes,
+        "activation_function": activation_function.__name__,
+      })
+    )
+
   print(ffnn.representation())
 
 if __name__ == "__main__":
