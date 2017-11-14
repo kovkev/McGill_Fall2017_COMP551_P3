@@ -7,6 +7,8 @@ Dependencies:
  - numpy
  - keras
 
+Download all data files in the current directory.
+
 Logistic regression:
 
 ```
