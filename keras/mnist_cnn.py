@@ -18,7 +18,7 @@ from keras import backend as K
 batch_size = 128
 num_classes = 82
 # num_classes = 10
-epochs = 12
+epochs = 120
 
 # input image dimensions
 img_rows, img_cols = 64, 64
@@ -39,7 +39,7 @@ def get_dataset():
   y = np.loadtxt("train_y.csv", delimiter=",")
 
   y = y.reshape(-1)
-  y = y.astype(int)[:1000]
+  y = y.astype(int)[:10000]
 
   n_values = np.max(y) + 1
   one_hot_ks = np.eye(n_values)[y]
@@ -47,7 +47,7 @@ def get_dataset():
   print("loading train_x.csv")
   import pandas as pd
   xxs = pd.read_csv("train_x.csv", delimiter=",", header=None)
-  xxs = np.array(xxs)[:1000]
+  xxs = np.array(xxs)[:10000]
   print("loaded train_x.csv")
   xxs = xxs.reshape(-1, 64, 64)
   xxs = xxs.astype('f')
@@ -95,7 +95,6 @@ x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
-import pdb; pdb.set_trace()
 print('x_train shape:', x_train.shape)
 print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
@@ -112,6 +111,7 @@ model.add(Conv2D(64, (3, 3), activation='relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Conv2D(32, (3, 3), activation='relu'))
 model.add(Conv2D(32, (5, 5), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 # model.add(Dropout(0.25))
 model.add(Flatten())
 model.add(Dense(128, activation='relu'))
@@ -129,7 +129,24 @@ history = model.fit(x_train, y_train,
           epochs=epochs,
           verbose=1,
           validation_data=(x_test, y_test))
+
+
 score = model.evaluate(x_test, y_test, verbose=0)
+# model.save()
+
+import pandas as pd
+test_set_x = pd.read_csv("test_x.csv", delimiter=",", header=None)
+test_set_x = np.array(test_set_x)
+print("loaded test_x.csv")
+test_set_x = test_set_x.reshape(-1, 64, 64, 1)
+test_set_x = test_set_x.astype('float32')
+test_set_x /= 255
+
+prediction = model.predict(test_set_x)
+
+digits = np.array([ np.argmax(a) for a in prediction ]).astype(int)
+np.savetxt("predictions.csv", digits, delimiter=",", fmt="%d")
+
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
@@ -141,7 +158,8 @@ plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.show()
+plt.savefig("accuracy")
+# plt.show()
 # summarize history for loss
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
@@ -149,4 +167,5 @@ plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'test'], loc='upper left')
-plt.show()
+plt.savefig("loss")
+# plt.show()

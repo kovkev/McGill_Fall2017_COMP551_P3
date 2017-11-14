@@ -1,3 +1,4 @@
+# use 256 filters at each layer?
 import numpy as np
 import math
 
@@ -232,7 +233,7 @@ def get_dataset():
 
   print("loading train_x.csv")
   import pandas as pd
-  xxs = pd.read_csv("train_x.csv", delimiter=",")
+  xxs = pd.read_csv("train_x.csv", delimiter=",", header=None)
   xxs = np.array(xxs)
   print("loaded train_x.csv")
   xxs = xxs.reshape(-1, 4096)
